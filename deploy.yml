@@ -1,0 +1,204 @@
+data:
+  FUNCTIONS_WORKER_RUNTIME: cHl0aG9u
+apiVersion: v1
+kind: Secret
+metadata:
+  name: udacityaks
+  namespace: default
+---
+data:
+  host.master: SUZBYTVsMWIzYmtxTkovUndWRGV3b0ZWMHg4ZVBJQWtXaHJnTGREbzdnbHNyRlJRTWRjcVdRPT0=
+  host.function.default: aE5YT3l1R2ZBWjlBTlhhcFF2UVdOQXE4bjVTQnhsbDRjc05WeXMzbE1SNzZBSG5NbXRVeTlBPT0=
+  host.systemKey.default: RnJTQUY1YjM2T0ZsUWhsNzRTOG4zM2xDSHJiT3JrSDVzVUppcWtjYm84Q3VBRlBtTEdpVjN3PT0=
+  functions.createadvertisement.default: UXZCbmlibFl3UjZSMEhyWWdRYVJ5TUFPMDJOc0l2MFFOQUlMWkZ0ODY4WmF3UFpKWmRFM3BBPT0=
+  functions.deleteadvertisement.default: eGxsYlBxRUFVa0xSR0Jnb3ZqOGp2by9QeGRHbUNBL084Skh0d1ZUV3o2dHYxeTluTFl3MndRPT0=
+  functions.getadvertisement.default: dTVBR3doTHkzRURWRzZPb0N4cmZORENQZ21HMXY5TkVHV1llbUh4MkFSZmI4LzdVR054Wkh3PT0=
+  functions.getadvertisements.default: TGJjSmtQaGFROVMxVDdRdFZoSWFzeTR3UTI3QmRVYnBKZ3Q3Z1BlNExwRUtnVHVRTmlZTmxRPT0=
+  functions.getpost.default: Y0VTVUZuMTh6NjBRVnNKeW1BQ3NBUFRvaWUzaDN6UWpSRi9aSWpIc2k3eWJvUzVadjJEM3p3PT0=
+  functions.getposts.default: Tk16WXAxRzNRdDdLdDA1OG5kYXRnZnVoL1R6Q2FwRXIzTDNpVWlkMVJrL1FnVERaMHZkOEx3PT0=
+  functions.updateadvertisement.default: Wll4cVpvUkJWNmhMODgwTE8xM0VzM1J1N1hzU2h4bUdhU1FmYTBNaVp2ZnA3ZExGeVNlOThnPT0=
+apiVersion: v1
+kind: Secret
+metadata:
+  name: func-keys-kube-secret-udacityaks
+  namespace: default
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: udacityaks-function-keys-identity-svc-act
+  namespace: default
+---
+rules:
+- apiGroups:
+  - ''
+  resources:
+  - secrets
+  - configMaps
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: functions-keys-manager-role
+  namespace: default
+---
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: functions-keys-manager-role
+subjects:
+- kind: ServiceAccount
+  name: udacityaks-function-keys-identity-svc-act
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: udacityaks-function-keys-identity-svc-act-functions-keys-manager-rolebinding
+  namespace: default
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: udacityaks-http
+  namespace: default
+spec:
+  selector:
+    app: udacityaks-http
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: 80
+  type: LoadBalancer
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: udacityaks-http
+  namespace: default
+  labels:
+    app: udacityaks-http
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: udacityaks-http
+  template:
+    metadata:
+      labels:
+        app: udacityaks-http
+    spec:
+      containers:
+      - name: udacityaks-http
+        image: udacityfunapp.azurecr.io/udacityproj2
+        ports:
+        - containerPort: 80
+        env:
+        - name: AzureFunctionsJobHost__functions__0
+          value: createAdvertisement
+        - name: AzureFunctionsJobHost__functions__1
+          value: deleteAdvertisement
+        - name: AzureFunctionsJobHost__functions__2
+          value: getAdvertisement
+        - name: AzureFunctionsJobHost__functions__3
+          value: getAdvertisements
+        - name: AzureFunctionsJobHost__functions__4
+          value: getPost
+        - name: AzureFunctionsJobHost__functions__5
+          value: getPosts
+        - name: AzureFunctionsJobHost__functions__6
+          value: updateAdvertisement
+        - name: AzureWebJobsSecretStorageType
+          value: kubernetes
+        - name: AzureWebJobsKubernetesSecretName
+          value: secrets/func-keys-kube-secret-udacityaks
+        envFrom:
+        - secretRef:
+            name: udacityaks
+        readinessProbe:
+          failureThreshold: 3
+          periodSeconds: 10
+          successThreshold: 1
+          timeoutSeconds: 240
+          httpGet:
+            path: /
+            port: 80
+            scheme: HTTP
+        startupProbe:
+          failureThreshold: 3
+          periodSeconds: 10
+          successThreshold: 1
+          timeoutSeconds: 240
+          httpGet:
+            path: /
+            port: 80
+            scheme: HTTP
+      serviceAccountName: udacityaks-function-keys-identity-svc-act
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: udacityaks
+  namespace: default
+  labels:
+    app: udacityaks
+spec:
+  selector:
+    matchLabels:
+      app: udacityaks
+  template:
+    metadata:
+      labels:
+        app: udacityaks
+    spec:
+      containers:
+      - name: udacityaks
+        image: udacityfunapp.azurecr.io/udacityproj2
+        env:
+        - name: AzureFunctionsJobHost__functions__0
+          value: eventHubTrigger
+        envFrom:
+        - secretRef:
+            name: udacityaks
+        readinessProbe:
+          failureThreshold: 3
+          periodSeconds: 10
+          successThreshold: 1
+          timeoutSeconds: 240
+          httpGet:
+            path: /
+            port: 80
+            scheme: HTTP
+        startupProbe:
+          failureThreshold: 3
+          periodSeconds: 10
+          successThreshold: 1
+          timeoutSeconds: 240
+          httpGet:
+            path: /
+            port: 80
+            scheme: HTTP
+      serviceAccountName: udacityaks-function-keys-identity-svc-act
+---
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: udacityaks
+  namespace: default
+  labels: {}
+spec:
+  scaleTargetRef:
+    name: udacityaks
+  triggers:
+  - type: eventgridtrigger
+    metadata:
+      direction: in
+      eventHubName: testhub
+      connection: Endpoint=sb://udacityneighborly.servicebus.windows.net/;SharedAccessKeyName=allpolicy;SharedAccessKey=LOxUOkN13xN038T1VoSsmaTt4s7vq/+VCzduS5/nH9A=;EntityPath=testhub
+---
+
